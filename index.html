@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pentix</title>
+    <title>Fivvix</title>
     <style>
         * {
             margin: 0;
@@ -197,8 +197,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>🎮 PENTIX</h1>
-        <p class="subtitle">16 Unique Shapes!</p>
+        <h1>🎮 FIVVIX</h1>
+        <p class="subtitle">18 blocks!</p>
         
         <div class="game-container">
             <canvas id="gameCanvas" width="450" height="600"></canvas>
@@ -268,9 +268,11 @@
             '#982222', // CARMINERED
             '#004E7C', // GENTIANBLUE
             '#223053'  // COBALTBLUE
+            '#FF007F', // DEEPROSE
+            '#99FFCC'  // LIGHTGREEN
         ];
         
-        // 16 Pentamino shapes from your Python game
+        // 18 Pentamino shapes from your Python game
         const SHAPES = [
             [[1, 1, 1, 1, 1]],  // I
             [[0, 1, 0], [1, 1, 1], [0, 1, 0]],  // cross
@@ -288,6 +290,8 @@
             [[1, 0, 0], [1, 0, 0], [1, 1, 1]],  // Angle
             [[1, 1, 1, 1], [0, 1, 0, 0]],  // sword
             [[1, 1, 1, 1], [0, 0, 1, 0]]  // sword'
+            [[1, 1, 1, 0], [0, 0, 1, 1]],  // snake
+            [[0, 1, 1, 1], [1, 1, 0, 0]]  // snake'
         ];
         
         let grid = Array(GRID_HEIGHT).fill().map(() => Array(GRID_WIDTH).fill(0));

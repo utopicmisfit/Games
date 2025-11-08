@@ -1,2 +1,2 @@
-# Pentix
-Pentix Game
+# Fivvix
+Fivvix Game

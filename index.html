@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pentix</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 700px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #764ba2;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        
+        .game-container {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        canvas {
+            border: 3px solid #764ba2;
+            border-radius: 10px;
+            background: #000;
+        }
+        
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .info-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #764ba2;
+        }
+        
+        .info-box h3 {
+            color: #764ba2;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+        
+        .score {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .controls {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .controls h3 {
+            color: #764ba2;
+            margin-bottom: 15px;
+        }
+        
+        .controls p {
+            margin: 8px 0;
+            color: #333;
+        }
+        
+        .controls kbd {
+            background: #764ba2;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-weight: bold;
+        }
+        
+        .donation-section {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            color: white;
+        }
+        
+        .donation-section h2 {
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        
+        .wallet-address {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 12px;
+            border-radius: 8px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 0.85em;
+            margin: 15px 0;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .copy-btn {
+            background: white;
+            color: #f5576c;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1em;
+            transition: transform 0.2s;
+        }
+        
+        .copy-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .copy-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            z-index: 1000;
+        }
+        
+        .game-over h2 {
+            font-size: 2.5em;
+            color: #f5576c;
+            margin-bottom: 20px;
+        }
+        
+        .restart-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+        
+        .restart-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        @media (max-width: 768px) {
+            .game-container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 PENTIS</h1>
+        <p class="subtitle">16 Unique Shapes!</p>
+        
+        <div class="game-container">
+            <canvas id="gameCanvas" width="450" height="600"></canvas>
+            
+            <div class="side-panel">
+                <div class="info-box">
+                    <h3>Score</h3>
+                    <div class="score" id="score">0</div>
+                </div>
+                
+                <div class="info-box">
+                    <h3>Next</h3>
+                    <canvas id="nextCanvas" width="120" height="120"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <h3>🎯 Controls</h3>
+            <p><kbd>←</kbd> <kbd>→</kbd> Move left/right</p>
+            <p><kbd>↓</kbd> Move down faster</p>
+            <p><kbd>↑</kbd> Rotate piece</p>
+            <p><kbd>SPACE</kbd> Restart game</p>
+        </div>
+        
+        <div class="donation-section">
+            <h2>💝 Enjoying the game?</h2>
+            <p>Support the developer with Bitcoin!</p>
+            <div class="wallet-address" id="walletAddress">
+                bc1qlr9uh63mq6dfjutsrk4md7a4ggl7ruz648nkn3
+            </div>
+            <button class="copy-btn" onclick="copyWallet()">📋 Copy Wallet Address</button>
+        </div>
+    </div>
+    
+    <div class="game-over" id="gameOverScreen">
+        <h2>GAME OVER</h2>
+        <p style="font-size: 1.5em; margin: 20px 0;">Final Score: <span id="finalScore">0</span></p>
+        <button class="restart-btn" onclick="restartGame()">Play Again</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const nextCanvas = document.getElementById('nextCanvas');
+        const nextCtx = nextCanvas.getContext('2d');
+        
+        const BLOCK_SIZE = 30;
+        const GRID_WIDTH = 15;
+        const GRID_HEIGHT = 20;
+        
+        // Colors matching your Python game
+        const COLORS = [
+            '#00FFFF', // CYAN
+            '#FF00FF', // MAGENTA
+            '#FFFF00', // YELLOW
+            '#FF0000', // RED
+            '#00FF00', // GREEN
+            '#0000FF', // BLUE
+            '#FFA500', // ORANGE
+            '#CBF542', // LEMON
+            '#A442F5', // PURPLE
+            '#F5C542', // GOLD
+            '#F55742', // SUNSET
+            '#42D4F5', // SKYBLUE
+            '#34EB3D', // FROGGREEN
+            '#982222', // CARMINERED
+            '#004E7C', // GENTIANBLUE
+            '#223053'  // COBALTBLUE
+        ];
+        
+        // 16 Pentamino shapes from your Python game
+        const SHAPES = [
+            [[1, 1, 1, 1, 1]],  // I
+            [[0, 1, 0], [1, 1, 1], [0, 1, 0]],  // cross
+            [[1, 1, 1], [0, 1, 0], [0, 1, 0]],  // T
+            [[1, 1, 0], [0, 1, 1], [0, 1, 0]],  // Life
+            [[0, 1, 1], [1, 1, 0], [0, 1, 0]],  // Life'
+            [[1, 1], [1, 1], [0, 1]],  // O'
+            [[1, 1], [1, 1], [1, 0]],  // O''
+            [[1, 1], [1, 0], [1, 1]],  // C
+            [[1, 1, 0], [0, 1, 0], [0, 1, 1]],  // Z
+            [[0, 1, 1], [0, 1, 0], [1, 1, 0]],  // S
+            [[1, 1, 1, 1], [0, 0, 0, 1]],  // J
+            [[1, 1, 1, 1], [1, 0, 0, 0]],  // L
+            [[1, 1, 0], [0, 1, 1], [0, 0, 1]],  // M
+            [[1, 0, 0], [1, 0, 0], [1, 1, 1]],  // Angle
+            [[1, 1, 1, 1], [0, 1, 0, 0]],  // sword
+            [[1, 1, 1, 1], [0, 0, 1, 0]]  // sword'
+        ];
+        
+        let grid = Array(GRID_HEIGHT).fill().map(() => Array(GRID_WIDTH).fill(0));
+        let currentPiece = null;
+        let nextPiece = null;
+        let score = 0;
+        let gameOver = false;
+        let fallTime = 0;
+        let lastTime = Date.now();
+        const FALL_SPEED = 800;
+        
+        class Piece {
+            constructor() {
+                const index = Math.floor(Math.random() * SHAPES.length);
+                this.shape = SHAPES[index];
+                this.color = COLORS[index];
+                this.x = Math.floor(GRID_WIDTH / 2) - Math.floor(this.shape[0].length / 2);
+                this.y = 0;
+            }
+            
+            rotate() {
+                const rotated = this.shape[0].map((_, i) =>
+                    this.shape.map(row => row[i]).reverse()
+                );
+                return rotated;
+            }
+        }
+        
+        function validMove(piece, dx = 0, dy = 0, newShape = null) {
+            const shape = newShape || piece.shape;
+            for (let y = 0; y < shape.length; y++) {
+                for (let x = 0; x < shape[y].length; x++) {
+                    if (shape[y][x]) {
+                        const newX = piece.x + x + dx;
+                        const newY = piece.y + y + dy;
+                        if (newX < 0 || newX >= GRID_WIDTH || newY >= GRID_HEIGHT ||
+                            (newY >= 0 && grid[newY][newX])) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+        
+        function lockPiece(piece) {
+            for (let y = 0; y < piece.shape.length; y++) {
+                for (let x = 0; x < piece.shape[y].length; x++) {
+                    if (piece.shape[y][x]) {
+                        grid[piece.y + y][piece.x + x] = piece.color;
+                    }
+                }
+            }
+        }
+        
+        function clearLines() {
+            let linesCleared = 0;
+            for (let y = GRID_HEIGHT - 1; y >= 0; y--) {
+                if (grid[y].every(cell => cell !== 0)) {
+                    grid.splice(y, 1);
+                    grid.unshift(Array(GRID_WIDTH).fill(0));
+                    linesCleared++;
+                    y++;
+                }
+            }
+            return linesCleared;
+        }
+        
+        function drawGrid() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw locked pieces
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    if (grid[y][x]) {
+                        ctx.fillStyle = grid[y][x];
+                        ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+                    }
+                }
+            }
+            
+            // Draw current piece
+            if (currentPiece) {
+                ctx.fillStyle = currentPiece.color;
+                for (let y = 0; y < currentPiece.shape.length; y++) {
+                    for (let x = 0; x < currentPiece.shape[y].length; x++) {
+                        if (currentPiece.shape[y][x]) {
+                            ctx.fillRect(
+                                (currentPiece.x + x) * BLOCK_SIZE,
+                                (currentPiece.y + y) * BLOCK_SIZE,
+                                BLOCK_SIZE - 1, BLOCK_SIZE - 1
+                            );
+                        }
+                    }
+                }
+            }
+            
+            // Draw grid lines
+            ctx.strokeStyle = '#333';
+            for (let x = 0; x <= GRID_WIDTH; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * BLOCK_SIZE, 0);
+                ctx.lineTo(x * BLOCK_SIZE, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= GRID_HEIGHT; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, y * BLOCK_SIZE);
+                ctx.lineTo(canvas.width, y * BLOCK_SIZE);
+                ctx.stroke();
+            }
+        }
+        
+        function drawNextPiece() {
+            nextCtx.fillStyle = '#f8f9fa';
+            nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+            
+            if (nextPiece) {
+                const offsetX = (nextCanvas.width - nextPiece.shape[0].length * 20) / 2;
+                const offsetY = (nextCanvas.height - nextPiece.shape.length * 20) / 2;
+                
+                nextCtx.fillStyle = nextPiece.color;
+                for (let y = 0; y < nextPiece.shape.length; y++) {
+                    for (let x = 0; x < nextPiece.shape[y].length; x++) {
+                        if (nextPiece.shape[y][x]) {
+                            nextCtx.fillRect(
+                                offsetX + x * 20,
+                                offsetY + y * 20,
+                                19, 19
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+        }
+        
+        function gameLoop() {
+            if (gameOver) return;
+            
+            const currentTime = Date.now();
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+            
+            fallTime += deltaTime;
+            
+            if (fallTime > FALL_SPEED) {
+                if (validMove(currentPiece, 0, 1)) {
+                    currentPiece.y++;
+                } else {
+                    lockPiece(currentPiece);
+                    const linesCleared = clearLines();
+                    score += linesCleared * 100;
+                    updateScore();
+                    
+                    currentPiece = nextPiece;
+                    nextPiece = new Piece();
+                    
+                    if (!validMove(currentPiece)) {
+                        gameOver = true;
+                        showGameOver();
+                        return;
+                    }
+                }
+                fallTime = 0;
+            }
+            
+            drawGrid();
+            drawNextPiece();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function showGameOver() {
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOverScreen').style.display = 'block';
+        }
+        
+        function restartGame() {
+            grid = Array(GRID_HEIGHT).fill().map(() => Array(GRID_WIDTH).fill(0));
+            currentPiece = new Piece();
+            nextPiece = new Piece();
+            score = 0;
+            gameOver = false;
+            fallTime = 0;
+            lastTime = Date.now();
+            updateScore();
+            document.getElementById('gameOverScreen').style.display = 'none';
+            gameLoop();
+        }
+        
+        function copyWallet() {
+            const walletAddress = document.getElementById('walletAddress').textContent;
+            navigator.clipboard.writeText(walletAddress).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copied!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        }
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (gameOver && e.key === ' ') {
+                restartGame();
+                return;
+            }
+            
+            if (gameOver) return;
+            
+            if (e.key === 'ArrowLeft') {
+                if (validMove(currentPiece, -1, 0)) {
+                    currentPiece.x--;
+                }
+            } else if (e.key === 'ArrowRight') {
+                if (validMove(currentPiece, 1, 0)) {
+                    currentPiece.x++;
+                }
+            } else if (e.key === 'ArrowDown') {
+                if (validMove(currentPiece, 0, 1)) {
+                    currentPiece.y++;
+                }
+            } else if (e.key === 'ArrowUp') {
+                const rotated = currentPiece.rotate();
+                if (validMove(currentPiece, 0, 0, rotated)) {
+                    currentPiece.shape = rotated;
+                }
+            }
+        });
+        
+        // Start the game
+        currentPiece = new Piece();
+        nextPiece = new Piece();
+        updateScore();
+        gameLoop();
+    </script>
+</body>
+</html>

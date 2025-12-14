@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pong Game</title>
+    <title>Pong Game - Human vs AI</title>
     <style>
         body {
             margin: 0;
@@ -15,19 +15,17 @@
             background-color: #1a1a1a;
             font-family: Arial, sans-serif;
         }
-        #gameCanvas {
+        canvas {
             border: 2px solid #333;
             display: block;
         }
         #instructions {
             position: absolute;
             top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+            left: 20px;
             color: white;
-            text-align: center;
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 10px 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
             border-radius: 5px;
             font-size: 14px;
         }
@@ -35,9 +33,9 @@
 </head>
 <body>
     <div id="instructions">
-        Player 1: W/S keys | Player 2: Arrow Up/Down
+        Controls: W/S or Arrow Keys to move paddle
     </div>
-    <canvas id="gameCanvas" width="1370" height="700"></canvas>
+    <canvas id="gameCanvas"></canvas>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -46,15 +44,66 @@
         // Constants
         const WIDTH = 1370;
         const HEIGHT = 700;
-        const PADDLE_WIDTH = 15;
+        const PADDLE_WIDTH = 5;
         const PADDLE_HEIGHT = 200;
-        const BALL_SIZE = 15;
+        const BALL_SIZE = 40;
         const FPS = 60;
 
-        // Audio context for sound generation
+        canvas.width = WIDTH;
+        canvas.height = HEIGHT;
+
+        // AI Difficulty settings
+        const AI_SPEED = 6;
+        const AI_REACTION_TIME = 0.20;
+        const AI_PREDICTION_FACTOR = 0.80;
+
+        // Angle variation settings
+        const ANGLE_VARIATION_PERCENT = 0.10;
+
+        // Angle limits (in degrees from horizontal)
+        const MAX_REBOUND_ANGLE = 70;
+        const MIN_REBOUND_ANGLE = 20;
+
+        // Initial angle ranges
+        const INITIAL_ANGLE_RANGES = [
+            [35, 55],    // Quadrant I (down-right)
+            [125, 145],  // Quadrant II (down-left)
+            [215, 235],  // Quadrant III (up-left)
+            [305, 325],  // Quadrant IV (up-right)
+        ];
+
+        // Convert to radians
+        const MAX_ANGLE_RAD = MAX_REBOUND_ANGLE * Math.PI / 180;
+        const MIN_ANGLE_RAD = MIN_REBOUND_ANGLE * Math.PI / 180;
+
+        // Game objects
+        let playerPaddle = { x: 50, y: HEIGHT / 2 - PADDLE_HEIGHT / 2, width: PADDLE_WIDTH, height: PADDLE_HEIGHT };
+        let aiPaddle = { x: WIDTH - 50 - PADDLE_WIDTH, y: HEIGHT / 2 - PADDLE_HEIGHT / 2, width: PADDLE_WIDTH, height: PADDLE_HEIGHT };
+        let ball = { x: WIDTH / 2 - BALL_SIZE / 2, y: HEIGHT / 2 - BALL_SIZE / 2, width: BALL_SIZE, height: BALL_SIZE };
+
+        // Ball properties
+        const initialBallSpeed = 7;
+        let ballSpeedX = initialBallSpeed;
+        let ballSpeedY = initialBallSpeed;
+
+        // Speed increase parameters
+        const speedIncreaseFactor = 1.25;
+        const maxBallSpeed = 25;
+
+        // Scores
+        let playerScore = 0;
+        let aiScore = 0;
+
+        // AI variables
+        let aiTargetY = HEIGHT / 2;
+        let aiError = 0;
+
+        // Keyboard state
+        const keys = {};
+
+        // Audio context for sounds
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-        // Generate bounce sound
         function playBounceSound() {
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
@@ -72,201 +121,244 @@
             oscillator.stop(audioContext.currentTime + 0.1);
         }
 
-        // Generate goal sound
         function playGoalSound() {
-            const oscillator1 = audioContext.createOscillator();
-            const oscillator2 = audioContext.createOscillator();
+            const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
             
-            oscillator1.connect(gainNode);
-            oscillator2.connect(gainNode);
+            oscillator.connect(gainNode);
             gainNode.connect(audioContext.destination);
             
-            oscillator1.frequency.value = 330;
-            oscillator2.frequency.value = 440;
-            oscillator1.type = 'sine';
-            oscillator2.type = 'sine';
+            oscillator.frequency.setValueAtTime(330, audioContext.currentTime);
+            oscillator.frequency.setValueAtTime(440, audioContext.currentTime + 0.15);
+            oscillator.type = 'sine';
             
             gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
             
-            oscillator1.start(audioContext.currentTime);
-            oscillator1.stop(audioContext.currentTime + 0.15);
-            oscillator2.start(audioContext.currentTime + 0.15);
-            oscillator2.stop(audioContext.currentTime + 0.3);
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
         }
 
-        // Paddle objects
-        const paddle1 = {
-            x: 50,
-            y: HEIGHT / 2 - PADDLE_HEIGHT / 2,
-            width: PADDLE_WIDTH,
-            height: PADDLE_HEIGHT,
-            speed: 7
-        };
+        function getRandomInitialAngle() {
+            const angleRange = INITIAL_ANGLE_RANGES[Math.floor(Math.random() * INITIAL_ANGLE_RANGES.length)];
+            const angleDegrees = angleRange[0] + Math.random() * (angleRange[1] - angleRange[0]);
+            const angleRadians = angleDegrees * Math.PI / 180;
+            return { rad: angleRadians, deg: angleDegrees };
+        }
 
-        const paddle2 = {
-            x: WIDTH - 50 - PADDLE_WIDTH,
-            y: HEIGHT / 2 - PADDLE_HEIGHT / 2,
-            width: PADDLE_WIDTH,
-            height: PADDLE_HEIGHT,
-            speed: 7
-        };
-
-        // Ball object
-        const ball = {
-            x: WIDTH / 2 - BALL_SIZE / 2,
-            y: HEIGHT / 2 - BALL_SIZE / 2,
-            size: BALL_SIZE,
-            speedX: 7,
-            speedY: 7,
-            initialSpeed: 7
-        };
-
-        // Speed parameters
-        const speedIncreaseFactor = 1.05;
-        const maxBallSpeed = 15;
-
-        // Scores
-        let score1 = 0;
-        let score2 = 0;
-
-        // Keyboard state
-        const keys = {};
-
-        // Event listeners for keyboard
-        window.addEventListener('keydown', (e) => {
-            keys[e.key] = true;
-        });
-
-        window.addEventListener('keyup', (e) => {
-            keys[e.key] = false;
-        });
-
-        // Reset ball to center
         function resetBall() {
             ball.x = WIDTH / 2 - BALL_SIZE / 2;
             ball.y = HEIGHT / 2 - BALL_SIZE / 2;
-            ball.speedX = ball.speedX < 0 ? ball.initialSpeed : -ball.initialSpeed;
-            ball.speedY = ball.initialSpeed * (Math.random() > 0.5 ? 1 : -1);
+            
+            const angle = getRandomInitialAngle();
+            ballSpeedX = initialBallSpeed * Math.cos(angle.rad);
+            ballSpeedY = initialBallSpeed * Math.sin(angle.rad);
+            
+            aiError = Math.random() * 100 - 50;
         }
 
-        // Increase ball speed
         function increaseBallSpeed() {
-            const currentSpeed = Math.sqrt(ball.speedX ** 2 + ball.speedY ** 2);
+            const currentSpeed = Math.sqrt(ballSpeedX ** 2 + ballSpeedY ** 2);
             
             if (currentSpeed < maxBallSpeed) {
-                ball.speedX *= speedIncreaseFactor;
-                ball.speedY *= speedIncreaseFactor;
+                ballSpeedX *= speedIncreaseFactor;
+                ballSpeedY *= speedIncreaseFactor;
             }
         }
 
-        // Draw all game objects
+        function clampAngleToLimits(speedX, speedY) {
+            const currentAngle = Math.atan2(Math.abs(speedY), Math.abs(speedX));
+            
+            if (currentAngle < MIN_ANGLE_RAD) {
+                const directionY = speedY >= 0 ? 1 : -1;
+                speedY = Math.abs(speedX) * Math.tan(MIN_ANGLE_RAD) * directionY;
+            } else if (currentAngle > MAX_ANGLE_RAD) {
+                const directionY = speedY >= 0 ? 1 : -1;
+                speedY = Math.abs(speedX) * Math.tan(MAX_ANGLE_RAD) * directionY;
+            }
+            
+            return { x: speedX, y: speedY };
+        }
+
+        function calculatePhysicallyAccurateRebound(isPlayer) {
+            const currentSpeed = Math.sqrt(ballSpeedX ** 2 + ballSpeedY ** 2);
+            
+            let newSpeedX = -ballSpeedX;
+            
+            const variationFactor = 1.0 + (Math.random() * 2 - 1) * ANGLE_VARIATION_PERCENT;
+            let newSpeedY = ballSpeedY * variationFactor;
+            
+            const newSpeed = Math.sqrt(newSpeedX ** 2 + newSpeedY ** 2);
+            if (newSpeed > currentSpeed * 1.1) {
+                const scaleFactor = (currentSpeed * 1.1) / newSpeed;
+                newSpeedX *= scaleFactor;
+                newSpeedY *= scaleFactor;
+            }
+            
+            const clamped = clampAngleToLimits(newSpeedX, newSpeedY);
+            newSpeedX = clamped.x;
+            newSpeedY = clamped.y;
+            
+            if (isPlayer) {
+                const paddleEffect = Math.random() - 0.5;
+                newSpeedY += paddleEffect;
+                const reClamped = clampAngleToLimits(newSpeedX, newSpeedY);
+                newSpeedX = reClamped.x;
+                newSpeedY = reClamped.y;
+            }
+            
+            return { x: newSpeedX, y: newSpeedY };
+        }
+
         function drawObjects() {
-            // Clear canvas
-            ctx.fillStyle = 'black';
+            // Clear screen
+            ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
+            
             // Draw paddles
-            ctx.fillStyle = 'white';
-            ctx.fillRect(paddle1.x, paddle1.y, paddle1.width, paddle1.height);
-            ctx.fillRect(paddle2.x, paddle2.y, paddle2.width, paddle2.height);
-
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(playerPaddle.x, playerPaddle.y, playerPaddle.width, playerPaddle.height);
+            ctx.fillRect(aiPaddle.x, aiPaddle.y, aiPaddle.width, aiPaddle.height);
+            
             // Draw ball
             ctx.beginPath();
-            ctx.arc(ball.x + ball.size / 2, ball.y + ball.size / 2, ball.size / 2, 0, Math.PI * 2);
+            ctx.ellipse(ball.x + ball.width / 2, ball.y + ball.height / 2, ball.width / 2, ball.height / 2, 0, 0, 2 * Math.PI);
             ctx.fill();
-
+            
             // Draw center line
-            ctx.strokeStyle = 'white';
-            ctx.setLineDash([10, 10]);
+            ctx.strokeStyle = '#fff';
             ctx.beginPath();
             ctx.moveTo(WIDTH / 2, 0);
             ctx.lineTo(WIDTH / 2, HEIGHT);
             ctx.stroke();
-            ctx.setLineDash([]);
-
+            
             // Draw scores
             ctx.font = '84px Arial';
-            ctx.fillStyle = 'white';
-            ctx.fillText(score1, WIDTH / 4, 90);
-            ctx.fillText(score2, 3 * WIDTH / 4, 90);
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+            ctx.fillText(playerScore.toString(), WIDTH / 4, 90);
+            ctx.fillText(aiScore.toString(), 3 * WIDTH / 4, 90);
+            
+            // Draw labels
+            ctx.font = '36px Arial';
+            ctx.fillText('PLAYER', WIDTH / 4, 140);
+            ctx.fillText('AI', 3 * WIDTH / 4, 140);
         }
 
-        // Move paddles based on key presses
-        function movePaddles() {
-            // Player 1 (W/S keys)
-            if (keys['w'] && paddle1.y > 0) {
-                paddle1.y -= paddle1.speed;
+        function movePlayerPaddle() {
+            if ((keys['w'] || keys['W'] || keys['ArrowUp']) && playerPaddle.y > 0) {
+                playerPaddle.y -= 7;
             }
-            if (keys['s'] && paddle1.y + paddle1.height < HEIGHT) {
-                paddle1.y += paddle1.speed;
-            }
-
-            // Player 2 (Arrow keys)
-            if (keys['ArrowUp'] && paddle2.y > 0) {
-                paddle2.y -= paddle2.speed;
-            }
-            if (keys['ArrowDown'] && paddle2.y + paddle2.height < HEIGHT) {
-                paddle2.y += paddle2.speed;
+            if ((keys['s'] || keys['S'] || keys['ArrowDown']) && playerPaddle.y + playerPaddle.height < HEIGHT) {
+                playerPaddle.y += 7;
             }
         }
 
-        // Move ball and handle collisions
+        function moveAIPaddle() {
+            if (ballSpeedX > 0) {
+                const timeToReach = (aiPaddle.x - (ball.x + ball.width / 2)) / ballSpeedX;
+                const predictedY = (ball.y + ball.height / 2) + (ballSpeedY * timeToReach * AI_PREDICTION_FACTOR);
+                
+                aiError += Math.random() * 10 - 5;
+                aiError = Math.max(-100, Math.min(100, aiError));
+                
+                aiTargetY = predictedY + aiError;
+                aiTargetY = Math.max(PADDLE_HEIGHT / 2, Math.min(HEIGHT - PADDLE_HEIGHT / 2, aiTargetY));
+                
+                const paddleCenter = aiPaddle.y + aiPaddle.height / 2;
+                if (paddleCenter < aiTargetY - AI_REACTION_TIME * AI_SPEED) {
+                    aiPaddle.y += AI_SPEED;
+                } else if (paddleCenter > aiTargetY + AI_REACTION_TIME * AI_SPEED) {
+                    aiPaddle.y -= AI_SPEED;
+                }
+            }
+            
+            if (aiPaddle.y < 0) aiPaddle.y = 0;
+            if (aiPaddle.y + aiPaddle.height > HEIGHT) aiPaddle.y = HEIGHT - aiPaddle.height;
+        }
+
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
         function moveBall() {
-            // Move the ball
-            ball.x += ball.speedX;
-            ball.y += ball.speedY;
-
+            ball.x += ballSpeedX;
+            ball.y += ballSpeedY;
+            
             // Ball collision with top and bottom
-            if (ball.y <= 0 || ball.y + ball.size >= HEIGHT) {
-                ball.speedY *= -1;
+            if (ball.y <= 0 || ball.y + ball.height >= HEIGHT) {
+                ballSpeedY *= -1;
+                const clamped = clampAngleToLimits(ballSpeedX, ballSpeedY);
+                ballSpeedX = clamped.x;
+                ballSpeedY = clamped.y;
                 playBounceSound();
             }
-
-            // Ball collision with paddle 1
-            if (ball.x <= paddle1.x + paddle1.width &&
-                ball.x + ball.size >= paddle1.x &&
-                ball.y + ball.size >= paddle1.y &&
-                ball.y <= paddle1.y + paddle1.height) {
-                ball.speedX *= -1;
-                ball.x = paddle1.x + paddle1.width; // Prevent sticking
-                playBounceSound();
-                increaseBallSpeed();
-            }
-
-            // Ball collision with paddle 2
-            if (ball.x + ball.size >= paddle2.x &&
-                ball.x <= paddle2.x + paddle2.width &&
-                ball.y + ball.size >= paddle2.y &&
-                ball.y <= paddle2.y + paddle2.height) {
-                ball.speedX *= -1;
-                ball.x = paddle2.x - ball.size; // Prevent sticking
+            
+            // Ball collision with player paddle
+            if (checkCollision(ball, playerPaddle)) {
+                const newSpeed = calculatePhysicallyAccurateRebound(true);
+                ballSpeedX = newSpeed.x;
+                ballSpeedY = newSpeed.y;
+                
                 playBounceSound();
                 increaseBallSpeed();
+                
+                if (ballSpeedX < 0) {
+                    ballSpeedX = Math.abs(ballSpeedX);
+                }
+                ball.x = playerPaddle.x + playerPaddle.width + 1;
             }
-
-            // Ball goes out of bounds (scoring)
+            
+            // Ball collision with AI paddle
+            if (checkCollision(ball, aiPaddle)) {
+                const newSpeed = calculatePhysicallyAccurateRebound(false);
+                ballSpeedX = newSpeed.x;
+                ballSpeedY = newSpeed.y;
+                
+                playBounceSound();
+                increaseBallSpeed();
+                
+                if (ballSpeedX > 0) {
+                    ballSpeedX = -Math.abs(ballSpeedX);
+                }
+                ball.x = aiPaddle.x - ball.width - 1;
+            }
+            
+            // Ball goes out of bounds
             if (ball.x <= 0) {
-                score2++;
+                aiScore++;
                 playGoalSound();
                 resetBall();
-            } else if (ball.x + ball.size >= WIDTH) {
-                score1++;
+            } else if (ball.x + ball.width >= WIDTH) {
+                playerScore++;
                 playGoalSound();
                 resetBall();
             }
         }
 
-        // Main game loop
         function gameLoop() {
-            movePaddles();
+            movePlayerPaddle();
+            moveAIPaddle();
             moveBall();
             drawObjects();
-            requestAnimationFrame(gameLoop);
+            
+            setTimeout(() => requestAnimationFrame(gameLoop), 1000 / FPS);
         }
 
-        // Start the game
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        // Initialize and start game
+        resetBall();
         gameLoop();
     </script>
 </body>
